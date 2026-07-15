@@ -7,37 +7,41 @@ type Listener = () => void;
 class ThreadStore {
   private threads = new Map<string, Thread>();
   private listeners = new Set<Listener>();
+  private cachedList: Thread[] = [];
 
   subscribe = (l: Listener) => {
     this.listeners.add(l);
-    return () => this.listeners.delete(l);
+    return () => {
+      this.listeners.delete(l);
+    };
   };
 
-  private emit() {
+  getSnapshot = (): Thread[] => this.cachedList;
+  getServerSnapshot = (): Thread[] => [];
+
+  private recomputeAndEmit() {
+    this.cachedList = Array.from(this.threads.values()).sort(
+      (a, b) => b.createdAt - a.createdAt,
+    );
     this.listeners.forEach((l) => l());
   }
 
-  list = (): Thread[] => {
-    return Array.from(this.threads.values()).sort((a, b) => b.createdAt - a.createdAt);
-  };
-
-  get = (id: string): Thread | undefined => this.threads.get(id);
-
   ensure = (id: string) => {
-    if (!this.threads.has(id)) {
-      this.threads.set(id, {
-        id,
-        title: "New chat",
-        messages: [],
-        createdAt: Date.now(),
-      });
-      this.emit();
-    }
+    if (this.threads.has(id)) return;
+    this.threads.set(id, {
+      id,
+      title: "New chat",
+      messages: [],
+      createdAt: Date.now(),
+    });
+    this.recomputeAndEmit();
   };
 
   updateMessages = (id: string, messages: UIMessage[]) => {
     const t = this.threads.get(id);
     if (!t) return;
+    // Skip if same reference
+    if (t.messages === messages) return;
     t.messages = messages;
     if (t.title === "New chat") {
       const firstUser = messages.find((m) => m.role === "user");
@@ -49,12 +53,12 @@ class ThreadStore {
         if (text) t.title = text.slice(0, 40) + (text.length > 40 ? "…" : "");
       }
     }
-    this.emit();
+    this.recomputeAndEmit();
   };
 
   remove = (id: string) => {
-    this.threads.delete(id);
-    this.emit();
+    if (!this.threads.delete(id)) return;
+    this.recomputeAndEmit();
   };
 }
 
