@@ -40,8 +40,8 @@ class ThreadStore {
   updateMessages = (id: string, messages: UIMessage[]) => {
     const t = this.threads.get(id);
     if (!t) return;
-    // Skip if same reference
     if (t.messages === messages) return;
+    if (t.messages.length === messages.length && messages.length === 0) return;
     t.messages = messages;
     if (t.title === "New chat") {
       const firstUser = messages.find((m) => m.role === "user");
