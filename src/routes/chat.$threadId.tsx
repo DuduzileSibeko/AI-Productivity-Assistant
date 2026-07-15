@@ -31,8 +31,8 @@ function ChatPage() {
 
   const threads = useSyncExternalStore(
     threadStore.subscribe,
-    () => threadStore.list(),
-    () => [],
+    threadStore.getSnapshot,
+    threadStore.getServerSnapshot,
   );
   const active = threads.find((t) => t.id === threadId);
   const initialMessages = useMemo(() => active?.messages ?? [], [active]);
