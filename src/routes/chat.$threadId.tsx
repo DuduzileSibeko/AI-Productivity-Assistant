@@ -68,6 +68,7 @@ function ChatPage() {
   useEffect(() => {
     const t = sessionThreads.get(threadId);
     if (!t) return;
+    if (t.messages.length === 0 && messages.length === 0) return;
     if (t.messages === messages) return;
     t.messages = messages;
     if (t.title === "New chat") {
