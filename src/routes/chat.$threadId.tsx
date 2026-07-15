@@ -79,7 +79,7 @@ function ChatPage() {
   const deleteThread = (id: string) => {
     threadStore.remove(id);
     if (id === threadId) {
-      const remaining = threadStore.list();
+      const remaining = threadStore.getSnapshot();
       if (remaining[0]) {
         navigate({ to: "/chat/$threadId", params: { threadId: remaining[0].id } });
       } else {
