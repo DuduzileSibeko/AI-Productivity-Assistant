@@ -56,16 +56,9 @@ function ChatPage() {
     queueMicrotask(notify);
   }
 
-  const threads = useThreadList();
-  const initialMessages = useMemo(
-    () => sessionThreads.get(threadId)?.messages ?? [],
-    [threadId],
-  );
-
   const transport = useMemo(() => new DefaultChatTransport({ api: "/api/chat" }), []);
   const { messages, sendMessage, status, stop } = useChat({
     id: threadId,
-    messages: initialMessages,
     transport,
     onError: (e) => console.error("chat error", e),
   });
