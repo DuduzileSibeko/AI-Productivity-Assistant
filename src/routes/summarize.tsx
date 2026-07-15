@@ -29,8 +29,6 @@ Attendees: Alex (PM), Priya (Eng), Jordan (Design), Sam (Sales).
 - Decision: launch pricing update Sep 1. Alex owns comms.
 - Open: budget for paid ads not confirmed.`;
 
-export default undefined;
-
 function SummarizePage() {
   const fn = useServerFn(summarizeMeeting);
   const [notes, setNotes] = useState("");
