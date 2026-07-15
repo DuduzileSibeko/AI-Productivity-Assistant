@@ -1,8 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import { DefaultChatTransport } from "ai";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Plus, Send, Square, Trash2, MessagesSquare } from "lucide-react";
+import { Loader2, Plus, Send, Square, MessagesSquare } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AppShell } from "@/components/AppShell";
@@ -20,43 +20,17 @@ export const Route = createFileRoute("/chat/$threadId")({
   component: ChatPage,
 });
 
-type Thread = { id: string; title: string; messages: UIMessage[]; createdAt: number };
-
-// Module-scoped session state (no persistence — reset on refresh).
-const sessionThreads = new Map<string, Thread>();
-const listeners = new Set<() => void>();
-function notify() {
-  listeners.forEach((l) => l());
-}
-function useThreadList() {
-  const [, setV] = useState(0);
-  useEffect(() => {
-    const l = () => setV((n) => n + 1);
-    listeners.add(l);
-    return () => {
-      listeners.delete(l);
-    };
-  }, []);
-  return Array.from(sessionThreads.values()).sort((a, b) => b.createdAt - a.createdAt);
-}
+// Session-scoped thread titles for the sidebar (in-memory only).
+const threadTitles = new Map<string, { title: string; createdAt: number }>();
 
 function ChatPage() {
   const { threadId } = Route.useParams();
   const navigate = useNavigate();
 
-  // Ensure thread exists synchronously on render (idempotent).
-  if (!sessionThreads.has(threadId)) {
-    sessionThreads.set(threadId, {
-      id: threadId,
-      title: "New chat",
-      messages: [],
-      createdAt: Date.now(),
-    });
-    // Defer notify to avoid setState during render.
-    queueMicrotask(notify);
+  if (!threadTitles.has(threadId)) {
+    threadTitles.set(threadId, { title: "New chat", createdAt: Date.now() });
   }
 
-  const threads = useThreadList();
   const transport = useMemo(() => new DefaultChatTransport({ api: "/api/chat" }), []);
   const { messages, sendMessage, status, stop } = useChat({
     id: threadId,
@@ -64,25 +38,17 @@ function ChatPage() {
     onError: (e) => console.error("chat error", e),
   });
 
-  // Persist messages back to session store when they actually change.
+  // Update thread title from first user message.
+  const firstUserText = messages.find((m) => m.role === "user")?.parts
+    .map((p) => (p.type === "text" ? p.text : ""))
+    .join(" ")
+    .trim();
   useEffect(() => {
-    const t = sessionThreads.get(threadId);
-    if (!t) return;
-    if (t.messages.length === 0 && messages.length === 0) return;
-    if (t.messages === messages) return;
-    t.messages = messages;
-    if (t.title === "New chat") {
-      const firstUser = messages.find((m) => m.role === "user");
-      if (firstUser) {
-        const text = firstUser.parts
-          .map((p) => (p.type === "text" ? p.text : ""))
-          .join(" ")
-          .trim();
-        if (text) t.title = text.slice(0, 40) + (text.length > 40 ? "…" : "");
-      }
+    const t = threadTitles.get(threadId);
+    if (t && t.title === "New chat" && firstUserText) {
+      t.title = firstUserText.slice(0, 40) + (firstUserText.length > 40 ? "…" : "");
     }
-    notify();
-  }, [messages, threadId]);
+  }, [firstUserText, threadId]);
 
   const [input, setInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -111,18 +77,9 @@ function ChatPage() {
     navigate({ to: "/chat/$threadId", params: { threadId: id } });
   };
 
-  const deleteThread = (id: string) => {
-    sessionThreads.delete(id);
-    notify();
-    if (id === threadId) {
-      const remaining = Array.from(sessionThreads.values()).sort((a, b) => b.createdAt - a.createdAt);
-      if (remaining[0]) {
-        navigate({ to: "/chat/$threadId", params: { threadId: remaining[0].id } });
-      } else {
-        newThread();
-      }
-    }
-  };
+  const threadList = Array.from(threadTitles.entries())
+    .map(([id, v]) => ({ id, ...v }))
+    .sort((a, b) => b.createdAt - a.createdAt);
 
   return (
     <AppShell>
@@ -134,33 +91,21 @@ function ChatPage() {
             </Button>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {threads.map((t) => (
-              <div
+            {threadList.map((t) => (
+              <Link
                 key={t.id}
+                to="/chat/$threadId"
+                params={{ threadId: t.id }}
                 className={cn(
-                  "group flex items-center gap-1 rounded-md px-2 py-1.5 text-sm",
+                  "block truncate rounded-md px-2 py-1.5 text-sm",
                   t.id === threadId
                     ? "bg-primary/10 text-foreground"
                     : "hover:bg-muted text-muted-foreground",
                 )}
+                title={t.title}
               >
-                <Link
-                  to="/chat/$threadId"
-                  params={{ threadId: t.id }}
-                  className="flex-1 truncate"
-                  title={t.title}
-                >
-                  {t.title}
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => deleteThread(t.id)}
-                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-                  aria-label="Delete chat"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
+                {t.title}
+              </Link>
             ))}
           </div>
           <div className="p-3 border-t border-border text-xs text-muted-foreground">
