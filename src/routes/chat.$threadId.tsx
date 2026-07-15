@@ -1,13 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { DefaultChatTransport, type UIMessage } from "ai";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Plus, Send, Square, Trash2, MessagesSquare } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
-import { threadStore } from "@/lib/thread-store";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
 
@@ -21,21 +20,47 @@ export const Route = createFileRoute("/chat/$threadId")({
   component: ChatPage,
 });
 
+type Thread = { id: string; title: string; messages: UIMessage[]; createdAt: number };
+
+// Module-scoped session state (no persistence — reset on refresh).
+const sessionThreads = new Map<string, Thread>();
+const listeners = new Set<() => void>();
+function notify() {
+  listeners.forEach((l) => l());
+}
+function useThreadList() {
+  const [, setV] = useState(0);
+  useEffect(() => {
+    const l = () => setV((n) => n + 1);
+    listeners.add(l);
+    return () => {
+      listeners.delete(l);
+    };
+  }, []);
+  return Array.from(sessionThreads.values()).sort((a, b) => b.createdAt - a.createdAt);
+}
+
 function ChatPage() {
   const { threadId } = Route.useParams();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    threadStore.ensure(threadId);
-  }, [threadId]);
+  // Ensure thread exists synchronously on render (idempotent).
+  if (!sessionThreads.has(threadId)) {
+    sessionThreads.set(threadId, {
+      id: threadId,
+      title: "New chat",
+      messages: [],
+      createdAt: Date.now(),
+    });
+    // Defer notify to avoid setState during render.
+    queueMicrotask(notify);
+  }
 
-  const threads = useSyncExternalStore(
-    threadStore.subscribe,
-    threadStore.getSnapshot,
-    threadStore.getServerSnapshot,
+  const threads = useThreadList();
+  const initialMessages = useMemo(
+    () => sessionThreads.get(threadId)?.messages ?? [],
+    [threadId],
   );
-  const active = threads.find((t) => t.id === threadId);
-  const initialMessages = useMemo(() => active?.messages ?? [], [active]);
 
   const transport = useMemo(() => new DefaultChatTransport({ api: "/api/chat" }), []);
   const { messages, sendMessage, status, stop } = useChat({
@@ -45,8 +70,23 @@ function ChatPage() {
     onError: (e) => console.error("chat error", e),
   });
 
+  // Persist messages back to session store when they actually change.
   useEffect(() => {
-    threadStore.updateMessages(threadId, messages);
+    const t = sessionThreads.get(threadId);
+    if (!t) return;
+    if (t.messages === messages) return;
+    t.messages = messages;
+    if (t.title === "New chat") {
+      const firstUser = messages.find((m) => m.role === "user");
+      if (firstUser) {
+        const text = firstUser.parts
+          .map((p) => (p.type === "text" ? p.text : ""))
+          .join(" ")
+          .trim();
+        if (text) t.title = text.slice(0, 40) + (text.length > 40 ? "…" : "");
+      }
+    }
+    notify();
   }, [messages, threadId]);
 
   const [input, setInput] = useState("");
@@ -77,9 +117,10 @@ function ChatPage() {
   };
 
   const deleteThread = (id: string) => {
-    threadStore.remove(id);
+    sessionThreads.delete(id);
+    notify();
     if (id === threadId) {
-      const remaining = threadStore.getSnapshot();
+      const remaining = Array.from(sessionThreads.values()).sort((a, b) => b.createdAt - a.createdAt);
       if (remaining[0]) {
         navigate({ to: "/chat/$threadId", params: { threadId: remaining[0].id } });
       } else {
@@ -90,7 +131,7 @@ function ChatPage() {
 
   return (
     <AppShell>
-      <div className="flex h-[calc(100vh-0px)] md:h-screen">
+      <div className="flex md:h-screen h-[calc(100vh-100px)]">
         <div className="hidden md:flex w-64 flex-col border-r border-border bg-card">
           <div className="p-3 border-b border-border">
             <Button onClick={newThread} className="w-full" size="sm">
@@ -98,15 +139,14 @@ function ChatPage() {
             </Button>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {threads.length === 0 && (
-              <div className="text-xs text-muted-foreground p-3">No chats yet.</div>
-            )}
             {threads.map((t) => (
               <div
                 key={t.id}
                 className={cn(
                   "group flex items-center gap-1 rounded-md px-2 py-1.5 text-sm",
-                  t.id === threadId ? "bg-primary/10 text-foreground" : "hover:bg-muted text-muted-foreground",
+                  t.id === threadId
+                    ? "bg-primary/10 text-foreground"
+                    : "hover:bg-muted text-muted-foreground",
                 )}
               >
                 <Link
@@ -129,23 +169,23 @@ function ChatPage() {
             ))}
           </div>
           <div className="p-3 border-t border-border text-xs text-muted-foreground">
-            Chats are not saved and will be lost on refresh.
+            Chats aren't saved — they reset on refresh.
           </div>
         </div>
 
         <div className="flex-1 flex flex-col min-w-0">
           <div ref={scrollRef} className="flex-1 overflow-y-auto">
             {messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center px-6 text-center">
+              <div className="h-full flex flex-col items-center justify-center px-6 text-center py-12">
                 <img src={logo} width={72} height={72} alt="ProdAI" className="mb-4" />
                 <h2 className="font-serif text-3xl">Ask ProdAI anything.</h2>
                 <p className="text-muted-foreground mt-2 max-w-md">
-                  Draft, brainstorm, summarize, or plan. This chat runs in memory only — refresh to start fresh.
+                  Draft, brainstorm, summarize, or plan. This chat runs in memory only.
                 </p>
                 <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
                   {[
                     "Draft a professional apology email to a client",
-                    "Summarize this meeting…",
+                    "Summarize the key points from a meeting",
                     "Plan my Monday around 3 deep-work priorities",
                     "Explain OKRs like I'm new to the concept",
                   ].map((p) => (
@@ -169,9 +209,7 @@ function ChatPage() {
                       <div
                         className={cn(
                           "rounded-2xl px-4 py-2.5 max-w-[85%]",
-                          isUser
-                            ? "bg-primary text-primary-foreground"
-                            : "text-foreground",
+                          isUser ? "bg-primary text-primary-foreground" : "text-foreground",
                         )}
                       >
                         {isUser ? (
@@ -194,10 +232,7 @@ function ChatPage() {
             )}
           </div>
 
-          <form
-            onSubmit={handleSubmit}
-            className="border-t border-border bg-card p-3"
-          >
+          <form onSubmit={handleSubmit} className="border-t border-border bg-card p-3">
             <div className="mx-auto max-w-3xl flex items-end gap-2">
               <textarea
                 ref={textareaRef}
