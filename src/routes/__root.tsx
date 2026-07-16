@@ -82,16 +82,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "AI-powered productivity assistant: draft emails, summarize meetings, plan tasks, research topics, and chat with a workplace AI.",
+          "Boost workplace productivity with AI: emails, meeting summaries, plans, research, and chat.",
       },
       { property: "og:title", content: "ProdAI — AI Workplace Productivity Assistant" },
       {
         property: "og:description",
         content:
-          "Draft emails, summarize meetings, plan tasks, and chat with an AI workplace assistant.",
+          "Boost workplace productivity with AI: emails, meeting summaries, plans, research, and chat.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "ProdAI — AI Workplace Productivity Assistant" },
+      { name: "twitter:description", content: "Boost workplace productivity with AI: emails, meeting summaries, plans, research, and chat." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3bad4ad5-7028-469d-a764-5a4e3e04b6f8/id-preview-52eae69d--028a0560-1935-4b5c-b205-6462f2bd7e7a.lovable.app-1784216372698.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3bad4ad5-7028-469d-a764-5a4e3e04b6f8/id-preview-52eae69d--028a0560-1935-4b5c-b205-6462f2bd7e7a.lovable.app-1784216372698.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
