@@ -126,6 +126,17 @@
     min-height: 100vh;
   }
 
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 85% -5%, color-mix(in oklab, var(--primary) 8%, transparent) 0%, transparent 35%),
+      radial-gradient(circle at 5% 105%, color-mix(in oklab, var(--foreground) 4%, transparent) 0%, transparent 30%);
+  }
+
   h1, h2, h3, h4 {
     font-family: var(--font-sans);
     letter-spacing: -0.02em;
