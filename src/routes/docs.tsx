@@ -84,10 +84,23 @@ Each feature uses a purpose-built prompt with three layers:
 - **Preventing schema drift on retries** — wrapped every structured call in \`try/catch\` for \`NoObjectGeneratedError\` and returned a graceful fallback instead of a runtime crash.
 - **Making streamed chat feel natural** — used the Vercel AI SDK \`useChat\` hook with immediate optimistic UI, "Thinking…" state, and stop-generation control.
 
-## 7. Impact
+## 7. How to Use
+
+**Getting started:** open the app — no signup required. Pick a feature from the sidebar.
+
+- **Smart Email Generator** (\`/email\`) — enter purpose, audience, tone, and key points. Click *Generate* to produce a subject line, full email body, and reviewer notes. Copy the output into your mail client.
+- **Meeting Summarizer** (\`/summarize\`) — paste raw meeting notes (min. 20 characters). Returns an executive summary, key decisions, action items with owners/deadlines, and risks.
+- **Task Planner** (\`/planner\`) — list your tasks, choose *day* or *week* horizon, set work hours, and add priorities. Returns a scheduled plan with time-optimization tips.
+- **Research Assistant** (\`/research\`) — paste content to summarize or type a topic to explore. Returns a briefing with key insights, recommendations, and a plain-language explanation.
+- **AI Chatbot** (\`/chat\`) — start a new thread and chat freely. Threads are held in browser memory only; refresh to reset.
+
+**Tips:** be specific in your inputs — the more context you provide, the better the output. Always review AI results before sending or acting on them.
+
+## 8. Impact
 
 If a professional saves even **10 minutes per email × 5 emails/day** plus **20 minutes on meeting summaries** and **15 minutes on planning**, that's over **1 hour reclaimed daily**. Across a team of 20, that scales to **100+ hours per week** of freed-up capacity — measurable productivity gain from a small, focused set of AI tools.
 `;
+
 
 function DocsPage() {
   return (
