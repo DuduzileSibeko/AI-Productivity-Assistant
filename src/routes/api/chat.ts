@@ -27,7 +27,9 @@ export const Route = createFileRoute("/api/chat")({
           model: provider("openai/gpt-5.5"),
           system: SYSTEM_PROMPT,
           messages: await convertToModelMessages(messages as UIMessage[]),
+          providerOptions: { lovable: { service_tier: "priority" } },
         });
+
 
         return result.toUIMessageStreamResponse({
           originalMessages: messages as UIMessage[],
