@@ -33,6 +33,7 @@ export const generateEmail = createServerFn({ method: "POST" })
     try {
       const { output } = await generateText({
         model: getModel(),
+        providerOptions: { lovable: { service_tier: "priority" } },
         output: Output.object({ schema: emailSchema }),
         system:
           "You are an expert business communications writer. Write concise, effective professional emails. Adapt greetings, vocabulary, and sign-off to the specified audience and tone. Keep body under 250 words.",
@@ -75,6 +76,7 @@ export const summarizeMeeting = createServerFn({ method: "POST" })
     try {
       const { output } = await generateText({
         model: getModel(),
+        providerOptions: { lovable: { service_tier: "priority" } },
         output: Output.object({ schema: summarizeSchema }),
         system:
           "You are a meeting analyst. Read raw meeting notes and extract: a concise executive summary (2-3 sentences), key decisions, concrete action items (with owner and deadline when mentioned; otherwise null), and any risks or open questions.",
@@ -115,6 +117,7 @@ export const planTasks = createServerFn({ method: "POST" })
     try {
       const { output } = await generateText({
         model: getModel(),
+        providerOptions: { lovable: { service_tier: "priority" } },
         output: Output.object({ schema: plannerSchema }),
         system:
           "You are a productivity coach. Apply the Eisenhower matrix and time-boxing to plan the user's work. Group similar tasks, protect deep-work blocks, and leave buffer time.",
@@ -155,6 +158,7 @@ export const researchAssistant = createServerFn({ method: "POST" })
     try {
       const { output } = await generateText({
         model: getModel(),
+        providerOptions: { lovable: { service_tier: "priority" } },
         output: Output.object({ schema: researchSchema }),
         system:
           "You are a research analyst. Produce structured briefings that are accurate, balanced, and easy to skim. When summarizing user-provided content, stay grounded in the source. When exploring a topic from general knowledge, note that facts may be outdated.",
